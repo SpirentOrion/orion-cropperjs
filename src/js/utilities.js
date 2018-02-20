@@ -1,6 +1,4 @@
-import {
-  WINDOW,
-} from './constants';
+import { WINDOW } from './constants';
 
 /**
  * Check if the given value is not a number.
@@ -772,7 +770,7 @@ export function getSourceCanvas(
     -imageNaturalHeight / 2,
     imageNaturalWidth,
     imageNaturalHeight,
-  ];
+  ].map(normalizeDecimalNumber);
 
   canvas.width = normalizeDecimalNumber(width);
   canvas.height = normalizeDecimalNumber(height);
@@ -784,7 +782,7 @@ export function getSourceCanvas(
   context.scale(scaleX, scaleY);
   context.imageSmoothingEnabled = imageSmoothingEnabled;
   context.imageSmoothingQuality = imageSmoothingQuality;
-  context.drawImage(image, ...params.map(param => Math.floor(normalizeDecimalNumber(param))));
+  context.drawImage(image, params[0], params[1], Math.floor(params[2]), Math.floor(params[3]));
   context.restore();
   return canvas;
 }
