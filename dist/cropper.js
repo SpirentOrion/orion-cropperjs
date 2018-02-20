@@ -5,7 +5,7 @@
  * Copyright (c) 2015-2018 Chen Fengyuan
  * Released under the MIT license
  *
- * Date: 2018-01-03T13:27:18.062Z
+ * Date: 2018-02-20T07:17:17.963Z
  */
 
 (function (global, factory) {
@@ -87,6 +87,9 @@ var DEFAULTS = {
   // A selector for adding extra containers to preview
   preview: '',
 
+  // Take rounding errors into account for preview
+  precisePreview: false,
+
   // Re-render the cropper when resize the window
   responsive: true,
 
@@ -167,7 +170,7 @@ var DEFAULTS = {
   zoom: null
 };
 
-var TEMPLATE = '<div class="cropper-container">' + '<div class="cropper-wrap-box">' + '<div class="cropper-canvas"></div>' + '</div>' + '<div class="cropper-drag-box"></div>' + '<div class="cropper-crop-box">' + '<span class="cropper-view-box"></span>' + '<span class="cropper-dashed dashed-h"></span>' + '<span class="cropper-dashed dashed-v"></span>' + '<span class="cropper-center"></span>' + '<span class="cropper-face"></span>' + '<span class="cropper-line line-e" data-action="e"></span>' + '<span class="cropper-line line-n" data-action="n"></span>' + '<span class="cropper-line line-w" data-action="w"></span>' + '<span class="cropper-line line-s" data-action="s"></span>' + '<span class="cropper-point point-e" data-action="e"></span>' + '<span class="cropper-point point-n" data-action="n"></span>' + '<span class="cropper-point point-w" data-action="w"></span>' + '<span class="cropper-point point-s" data-action="s"></span>' + '<span class="cropper-point point-ne" data-action="ne"></span>' + '<span class="cropper-point point-nw" data-action="nw"></span>' + '<span class="cropper-point point-sw" data-action="sw"></span>' + '<span class="cropper-point point-se" data-action="se"></span>' + '</div>' + '</div>';
+var TEMPLATE = '<div class="cropper-container" touch-action="none">' + '<div class="cropper-wrap-box">' + '<div class="cropper-canvas"></div>' + '</div>' + '<div class="cropper-drag-box"></div>' + '<div class="cropper-crop-box">' + '<span class="cropper-view-box"></span>' + '<span class="cropper-dashed dashed-h"></span>' + '<span class="cropper-dashed dashed-v"></span>' + '<span class="cropper-center"></span>' + '<span class="cropper-face"></span>' + '<span class="cropper-line line-e" data-action="e"></span>' + '<span class="cropper-line line-n" data-action="n"></span>' + '<span class="cropper-line line-w" data-action="w"></span>' + '<span class="cropper-line line-s" data-action="s"></span>' + '<span class="cropper-point point-e" data-action="e"></span>' + '<span class="cropper-point point-n" data-action="n"></span>' + '<span class="cropper-point point-w" data-action="w"></span>' + '<span class="cropper-point point-s" data-action="s"></span>' + '<span class="cropper-point point-ne" data-action="ne"></span>' + '<span class="cropper-point point-nw" data-action="nw"></span>' + '<span class="cropper-point point-sw" data-action="sw"></span>' + '<span class="cropper-point point-se" data-action="se"></span>' + '</div>' + '</div>';
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) {
   return typeof obj;
@@ -1051,7 +1054,7 @@ function getSourceCanvas(image, _ref6, _ref7, _ref8) {
   });
   var width = Math.min(maxSizes.width, Math.max(minSizes.width, naturalWidth));
   var height = Math.min(maxSizes.height, Math.max(minSizes.height, naturalHeight));
-  var params = [-imageNaturalWidth / 2, -imageNaturalHeight / 2, imageNaturalWidth, imageNaturalHeight];
+  var params = [-imageNaturalWidth / 2, -imageNaturalHeight / 2, imageNaturalWidth, imageNaturalHeight].map(normalizeDecimalNumber);
 
   canvas.width = normalizeDecimalNumber(width);
   canvas.height = normalizeDecimalNumber(height);
@@ -1063,9 +1066,7 @@ function getSourceCanvas(image, _ref6, _ref7, _ref8) {
   context.scale(scaleX, scaleY);
   context.imageSmoothingEnabled = imageSmoothingEnabled;
   context.imageSmoothingQuality = imageSmoothingQuality;
-  context.drawImage.apply(context, [image].concat(toConsumableArray(params.map(function (param) {
-    return Math.floor(normalizeDecimalNumber(param));
-  }))));
+  context.drawImage(image, params[0], params[1], Math.floor(params[2]), Math.floor(params[3]));
   context.restore();
   return canvas;
 }
@@ -1740,12 +1741,15 @@ var preview = {
   preview: function preview() {
     var imageData = this.imageData,
         canvasData = this.canvasData,
-        cropBoxData = this.cropBoxData;
+        cropBoxData = this.cropBoxData,
+        options = this.options;
     var cropBoxWidth = cropBoxData.width,
         cropBoxHeight = cropBoxData.height;
     var width = imageData.width,
         height = imageData.height;
 
+    var rawRatioX = void 0;
+    var rawRatioY = void 0;
     var left = cropBoxData.left - canvasData.left - imageData.left;
     var top = cropBoxData.top - canvasData.top - imageData.top;
 
@@ -1760,6 +1764,19 @@ var preview = {
       translateX: -left,
       translateY: -top
     }, imageData))));
+
+    if (options.precisePreview) {
+      // emulate rounding that takes place during the crop process
+      // to make the preview exactly match with the cropped image
+      rawRatioX = canvasData.naturalWidth * imageData.scaleX / canvasData.width;
+      rawRatioY = canvasData.naturalHeight * imageData.scaleY / canvasData.height;
+      cropBoxWidth = Math.floor(cropBoxWidth * rawRatioX);
+      cropBoxHeight = Math.floor(cropBoxHeight * rawRatioY);
+      left = Math.floor(left * rawRatioX);
+      top = Math.floor(top * rawRatioY);
+      width = imageData.naturalWidth * imageData.scaleX;
+      height = imageData.naturalHeight * imageData.scaleY;
+    }
 
     each(this.previews, function (element) {
       var data = getData(element, DATA_PREVIEW);
